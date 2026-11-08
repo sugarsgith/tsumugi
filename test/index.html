@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>保健室のつむぎ v2 — 拡張するタイムライン</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;800&family=M+PLUS+Rounded+1c:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-top: #fdf6ee;
+    --bg-bot: #eef3ee;
+    --paper: #fffdf8;
+    --paper-ink: #4a4438;
+    --line: #dcd2c2;
+    --coral: #e2929a;
+    --coral-deep: #cf6e78;
+    --sage: #7fa896;
+    --sage-deep: #5c8873;
+    --muted: #9c9284;
+    --ink: #4a4438;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bot) 100%);
+    color:var(--ink);
+    font-family:'Shippori Mincho', serif;
+    min-height:100vh;
+    padding:22px 14px 60px;
+    overflow-x:hidden;
+  }
+  .wrap{ max-width:480px; margin:0 auto; position:relative; }
+  header{ text-align:center; margin-bottom:18px; }
+  .avatar{ display:flex; justify-content:center; margin-bottom:8px; }
+  .kicker{ font-family:'M PLUS Rounded 1c', sans-serif; font-size:11px; letter-spacing:.14em; color:var(--coral-deep); font-weight:700; }
+  h1{ font-size:20px; font-weight:800; margin:6px 0 4px; letter-spacing:.03em; }
+  .brief{ font-size:12.5px; color:var(--muted); line-height:1.7; font-family:'M PLUS Rounded 1c', sans-serif; }
+
+  .grid{ display:grid; gap:6px; margin:20px 0 12px; transition:all .2s; }
+  .head-cell, .row-label{ font-family:'M PLUS Rounded 1c', sans-serif; font-size:11.5px; color:var(--sage-deep); font-weight:700; display:flex; align-items:center; justify-content:center; text-align:center; }
+  .row-label{ flex-direction:column; }
+  .cell{ min-height:78px; border:1.5px dashed var(--line); border-radius:10px; background:rgba(255,255,255,.5); padding:7px; font-size:11.5px; line-height:1.5; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--muted); cursor:pointer; transition:background .18s, border-color .18s; position:relative; }
+  .cell.disabled{ cursor:default; border-style:solid; opacity:.4; }
+  .cell.filled{ background:var(--paper); color:var(--paper-ink); border:1.5px solid var(--sage); cursor:default; text-align:left; align-items:flex-start; box-shadow:0 2px 6px rgba(92,136,115,.12); }
+  .cell.wrong{ border-color:var(--coral-deep); background:rgba(226,146,154,.25); }
+  .cell.shake{ animation:shake .35s; }
+  .cell.pivot::after{
+    content:'分岐点';
+    position:absolute; top:-9px; right:-4px;
+    font-family:'M PLUS Rounded 1c', sans-serif;
+    font-size:9px; font-weight:700;
+    background:var(--coral); color:#fff;
+    padding:2px 6px; border-radius:8px;
+  }
+  .keyword{
+    text-decoration:underline;
+    text-decoration-color:var(--coral-deep);
+    text-decoration-style:wavy;
+    color:var(--coral-deep);
+    font-weight:700;
+    cursor:pointer;
+  }
+  @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-5px);} 75%{transform:translateX(5px);} }
+
+  .notice{ margin:0 0 16px; padding:11px 13px; background:rgba(226,146,154,.14); border:1.5px dashed var(--coral-deep); border-radius:10px; font-family:'M PLUS Rounded 1c', sans-serif; font-size:11.5px; color:var(--coral-deep); line-height:1.6; text-align:center; }
+  .notice.hidden{ display:none; }
+
+  .pool-label{ font-family:'M PLUS Rounded 1c', sans-serif; font-size:11px; color:var(--muted); letter-spacing:.05em; margin:20px 0 8px; border-top:1px solid var(--line); padding-top:14px; }
+  .pool{ display:flex; flex-direction:column; gap:8px; }
+  .card{ background:var(--paper); color:var(--paper-ink); border-radius:10px; padding:11px 12px; font-size:13px; line-height:1.65; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,.06); border:1.5px solid var(--line); border-left:5px solid var(--line); transition:background .15s, border-color .15s; }
+  .card:active{ transform:scale(.98); }
+  .card.selected{
+    border-color:var(--coral-deep);
+    border-left-color:var(--coral-deep);
+    background:#fdeeea;
+    box-shadow:0 0 0 3px rgba(207,110,120,.2);
+  }
+
+  .controls{ display:flex; justify-content:center; margin-top:22px; }
+  button{ font-family:'M PLUS Rounded 1c', sans-serif; font-weight:700; background:#fff; border:1.5px solid var(--sage); color:var(--sage-deep); padding:9px 20px; border-radius:20px; font-size:12px; letter-spacing:.05em; cursor:pointer; }
+  button:active{ background:var(--sage); color:#fff; }
+
+  .resolution{ margin-top:22px; padding:16px; background:rgba(127,168,150,.12); border:1.5px solid var(--sage); border-radius:12px; font-size:13px; line-height:1.8; }
+  .resolution.hidden{ display:none; }
+  .resolution .rtitle{ font-family:'M PLUS Rounded 1c', sans-serif; font-size:11px; color:var(--sage-deep); font-weight:700; letter-spacing:.05em; margin-bottom:8px; }
+
+  .revision{ margin-top:16px; padding:16px; background:rgba(226,146,154,.1); border:1.5px solid var(--coral); border-radius:12px; }
+  .revision.hidden{ display:none; }
+  .revision .rtitle{ font-family:'M PLUS Rounded 1c', sans-serif; font-size:11px; color:var(--coral-deep); font-weight:700; letter-spacing:.05em; margin-bottom:6px; }
+  .revision .rdesc{ font-family:'M PLUS Rounded 1c', sans-serif; font-size:11px; color:var(--muted); line-height:1.7; margin-bottom:12px; }
+  .rev-options{ display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+  .rev-card{ background:var(--paper); color:var(--paper-ink); border-radius:10px; padding:11px 12px; font-size:13px; line-height:1.6; cursor:pointer; border:2px solid transparent; }
+  .rev-card.active{ border-color:var(--coral-deep); box-shadow:0 0 0 3px rgba(207,110,120,.18); }
+  .outcome-box{ font-size:13px; line-height:1.8; padding-top:10px; border-top:1px dashed var(--line); }
+  .outcome-tag{ font-family:'M PLUS Rounded 1c', sans-serif; font-size:10.5px; font-weight:700; letter-spacing:.05em; margin-bottom:6px; }
+  .outcome-tag.bad{ color:var(--coral-deep); }
+  .outcome-tag.good{ color:var(--sage-deep); }
+
+  .expansion-resolution{ margin-top:16px; padding:16px; background:rgba(226,146,154,.14); border:1.5px solid var(--coral-deep); border-radius:12px; font-size:13px; line-height:1.8; }
+  .expansion-resolution.hidden{ display:none; }
+  .expansion-resolution .rtitle{ font-family:'M PLUS Rounded 1c', sans-serif; font-size:11px; color:var(--coral-deep); font-weight:700; letter-spacing:.05em; margin-bottom:8px; }
+</style>
+</head>
+<body>
+<!-- TEST-BADGE-START
+  このブロックはテスト版（/test/）だけの表示です。
+  本番へ昇格するときは、test/index.html を index.html にコピーしたあと、
+  コピー先から TEST-BADGE-START から TEST-BADGE-END までを削除してください。
+  test/index.html 側のこのブロックは残します。
+-->
+<style>
+  .test-badge{
+    position:fixed;
+    top:10px;
+    right:10px;
+    z-index:10000;
+    margin:0;
+    padding:5px 10px;
+    border-radius:999px;
+    background:#cf6e78;
+    color:#fff;
+    font-family:'M PLUS Rounded 1c', sans-serif;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.08em;
+    line-height:1.4;
+    box-shadow:0 2px 8px rgba(74,68,56,.18);
+    pointer-events:none;
+  }
+</style>
+<div class="test-badge">テスト版</div>
+<!-- TEST-BADGE-END -->
+<div class="wrap">
+  <header>
+    <div class="avatar">
+      <svg width="46" height="46" viewBox="0 0 46 46">
+        <circle cx="23" cy="23" r="21" fill="#fdeeea" stroke="#e2929a" stroke-width="1.5"/>
+        <circle cx="16" cy="21" r="2.4" fill="#cf6e78"/>
+        <circle cx="30" cy="21" r="2.4" fill="#cf6e78"/>
+        <path d="M15 28 Q23 34 31 28" stroke="#cf6e78" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="kicker">AI相談員 つむぎ · Prototype 02</div>
+    <h1>保健室のつむぎ</h1>
+    <div class="brief">昼休みと放課後、保健室の端末でそっと話を聞く。<br>証言の中の言葉が、まだ見ぬ続きに繋がっている。</div>
+  </header>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="notice hidden" id="expansionNotice">新しい記録が見つかった → 「その夜」の時間軸と、莉子の証言が追加されました。</div>
+
+  <div class="pool-label">つむぎと先生が覚えている言葉（タップして選択 → マス目に配置）</div>
+  <div class="pool" id="pool"></div>
+
+  <div class="controls">
+    <button id="resetBtn">はじめから</button>
+  </div>
+
+  <div class="resolution hidden" id="resolution">
+    <div class="rtitle">わかったこと</div>
+    <div id="resolutionText"></div>
+  </div>
+
+  <div class="revision hidden" id="revisionSection">
+    <div class="rtitle">もしも、ここが違ったら</div>
+    <div class="rdesc">分岐点の言葉を、別の行動の記憶に差し替えてみる。</div>
+    <div class="rev-options" id="revOptions"></div>
+    <div class="outcome-box">
+      <div class="outcome-tag" id="outcomeTag"></div>
+      <div id="outcomeText"></div>
+    </div>
+  </div>
+
+  <div class="expansion-resolution hidden" id="expansionResolution">
+    <div class="rtitle">さらにわかったこと — その夜</div>
+    <div id="expansionResolutionText"></div>
+  </div>
+</div>
+
+<script>
+// witnesses/timesは最初から4人・3時間分を定義し、拡張前は先頭だけを使う
+const witnesses = ["陽向","芽衣","保健室の先生","莉子"];
+const times = ["昼休み","放課後","その夜"];
+
+const testimonies = [
+  { id:1, row:0, col:0, group:'base', text:"今日、芽衣に絵文字だらけのLINE送ったら既読スルーされてて……ちょっと引かれたかもって思っちゃいました。" },
+  { id:2, row:0, col:1, group:'base', text:"既読つけたまま返信考えてたら、次の授業始まっちゃって。既読無視したみたいになってて気まずいです……" },
+  { id:3, row:0, col:2, group:'base', text:"陽向さん、いつも通りお昼には来てくれたんですけど、心なしかスマホをちらちら気にしてる様子でした。" },
+  { id:4, row:1, col:1, group:'base', pivot:true, text:"放課後、教室で陽向を見かけたけど、話しかけるタイミングを逃しちゃって、そのまま帰っちゃいました。" },
+  { id:5, row:1, col:2, group:'base', keyword:'莉子', text:"芽衣さんが放課後、莉子さんと少し立ち話をしてから保健室の前まで来て中を覗いて、そのまま帰っていくのを見ました。声をかければよかったと、今は少し後悔しています。" },
+  { id:6, row:2, col:0, group:'expansion', text:"夜、莉子に『既読無視されたと思って、なんか落ち込んじゃった』ってLINEしちゃいました。柄にもなく愚痴っちゃったかも。" },
+  { id:7, row:2, col:3, group:'expansion', text:"陽向から夜に連絡があって、話を聞いてました。次の日、それとなく芽衣に『既読、気にしてたみたいだよ』って伝えておきました。" },
+];
+const pivotOriginal = testimonies.find(t=>t.pivot);
+const pivotRevised = { text:"放課後、保健室の前で陽向を見かけたので、思い切って『さっきのLINE、既読無視したみたいでごめん』って声をかけました。" };
+
+let placed = {};
+let selectedId = null;
+let revisedActive = false;
+let expanded = false;
+let poolOrder = null;
+
+const gridEl = document.getElementById('grid');
+const poolEl = document.getElementById('pool');
+const expansionNotice = document.getElementById('expansionNotice');
+const resolutionEl = document.getElementById('resolution');
+const resolutionText = document.getElementById('resolutionText');
+const revisionSection = document.getElementById('revisionSection');
+const revOptionsEl = document.getElementById('revOptions');
+const outcomeTag = document.getElementById('outcomeTag');
+const outcomeText = document.getElementById('outcomeText');
+const expansionResolutionEl = document.getElementById('expansionResolution');
+const expansionResolutionText = document.getElementById('expansionResolutionText');
+
+function shuffled(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function currentWitnesses(){ return expanded ? witnesses : witnesses.slice(0,3); }
+function currentTimes(){ return expanded ? times : times.slice(0,2); }
+
+function isEmptyCell(key){
+  if(key==='1-0') return true; // 陽向・放課後は先に帰っていた
+  if(expanded && ['0-3','1-3','2-1','2-2'].includes(key)) return true; // 莉子登場前 / その夜に証言がない人
+  return false;
+}
+
+function buildGrid(){
+  const cw = currentWitnesses(), ct = currentTimes();
+  gridEl.style.gridTemplateColumns = `48px repeat(${cw.length}, 1fr)`;
+  gridEl.innerHTML = '';
+  gridEl.appendChild(document.createElement('div'));
+  cw.forEach(w=>{ const h=document.createElement('div'); h.className='head-cell'; h.textContent=w; gridEl.appendChild(h); });
+  ct.forEach((t,row)=>{
+    const label=document.createElement('div'); label.className='row-label'; label.textContent=t; gridEl.appendChild(label);
+    cw.forEach((_,col)=>{
+      const key=row+'-'+col;
+      const cell=document.createElement('div');
+      cell.className='cell';
+      if(isEmptyCell(key)){
+        cell.classList.add('disabled'); cell.textContent='（記録なし）';
+      } else if(placed[key]){
+        cell.classList.add('filled');
+        const t2 = placed[key];
+        let displayText = (t2.pivot && revisedActive) ? pivotRevised.text : t2.text;
+        if(t2.keyword){
+          displayText = displayText.replace(t2.keyword, `<span class="keyword">${t2.keyword}</span>`);
+          cell.innerHTML = displayText;
+          cell.addEventListener('click', (e)=>{
+            if(e.target.classList.contains('keyword')) triggerExpansion();
+          });
+        } else {
+          cell.textContent = displayText;
+        }
+        if(t2.pivot) cell.classList.add('pivot');
+      } else {
+        cell.textContent='空き';
+        cell.addEventListener('click', ()=>onCellClick(row,col,cell));
+      }
+      gridEl.appendChild(cell);
+    });
+  });
+}
+
+function buildPool(){
+  poolEl.innerHTML='';
+  const remaining = testimonies.filter(t => !placed[t.row+'-'+t.col] && (t.group==='base' || expanded));
+  const idsKey = remaining.map(t=>t.id).sort((a,b)=>a-b).join(',');
+  if(!poolOrder || poolOrder.idsKey !== idsKey){
+    poolOrder = { idsKey, order: shuffled(remaining).map(t=>t.id) };
+  }
+  poolOrder.order.forEach(id=>{
+    const t = remaining.find(x=>x.id===id);
+    if(!t) return;
+    const card=document.createElement('div'); card.className='card'; card.textContent=t.text;
+    if(t.id===selectedId) card.classList.add('selected');
+    card.addEventListener('click', ()=>{ selectedId=(selectedId===t.id)?null:t.id; buildPool(); });
+    poolEl.appendChild(card);
+  });
+}
+
+function onCellClick(row,col,cellEl){
+  if(selectedId===null) return;
+  const testimony = testimonies.find(t=>t.id===selectedId);
+  if(testimony.row===row && testimony.col===col){
+    placed[row+'-'+col]=testimony; selectedId=null;
+    buildGrid(); buildPool();
+    checkBaseWin();
+    checkExpansionWin();
+  } else {
+    cellEl.classList.add('wrong','shake');
+    setTimeout(()=>cellEl.classList.remove('shake'), 350);
+    setTimeout(()=>cellEl.classList.remove('wrong'), 1000);
+  }
+}
+
+function triggerExpansion(){
+  if(expanded) return;
+  expanded = true;
+  poolOrder = null;
+  buildGrid(); buildPool();
+  expansionNotice.classList.remove('hidden');
+}
+
+function checkBaseWin(){
+  const baseDone = testimonies.filter(t=>t.group==='base').every(t=>placed[t.row+'-'+t.col]);
+  if(baseDone && resolutionEl.classList.contains('hidden')){
+    resolutionText.innerHTML =
+      "ただの既読スルーの気まずさが、お互いの思い込みで少しずつ大きくなっていた。誰も悪くない、ただのタイミングのすれ違い。次の日も、二人は少し気まずいまま保健室で過ごしている。";
+    resolutionEl.classList.remove('hidden');
+    buildRevision();
+    revisionSection.classList.remove('hidden');
+    updateOutcome();
+  }
+}
+
+function checkExpansionWin(){
+  if(!expanded) return;
+  const expDone = testimonies.filter(t=>t.group==='expansion').every(t=>placed[t.row+'-'+t.col]);
+  if(expDone){
+    expansionResolutionText.innerHTML =
+      "実は、芽衣の既読無視を陽向はずっと気にしていて、その夜莉子に思わずこぼしていた。莉子は次の日、それとなく芽衣に陽向の様子を伝えていた——放課後のあの気まずさは、二人が直接言葉を交わさなくても、少しずつ溶けていくところだった。";
+    expansionResolutionEl.classList.remove('hidden');
+  }
+}
+
+function buildRevision(){
+  revOptionsEl.innerHTML='';
+  const opts = [
+    { key:'original', label:'芽衣 / 放課後（元の記憶）', text:pivotOriginal.text },
+    { key:'revised', label:'芽衣 / 放課後（差し替え後）', text:pivotRevised.text },
+  ];
+  opts.forEach(o=>{
+    const card=document.createElement('div');
+    card.className='rev-card' + ((o.key==='revised')===revisedActive ? ' active':'');
+    card.innerHTML = `<div style="font-family:'M PLUS Rounded 1c',sans-serif;font-size:10px;color:#b98088;margin-bottom:4px;font-weight:700;">${o.label}</div>${o.text}`;
+    card.addEventListener('click', ()=>{
+      revisedActive = (o.key==='revised');
+      buildGrid();
+      buildRevision();
+      updateOutcome();
+    });
+    revOptionsEl.appendChild(card);
+  });
+}
+
+function updateOutcome(){
+  if(revisedActive){
+    outcomeTag.textContent = '現在（改訂後）';
+    outcomeTag.className = 'outcome-tag good';
+    outcomeText.textContent = '二人はその場で笑い合って誤解が解け、次の日からまたいつも通り保健室でお昼を食べている。';
+  } else {
+    outcomeTag.textContent = '現在（元のまま）';
+    outcomeTag.className = 'outcome-tag bad';
+    outcomeText.textContent = 'ただの既読スルーの気まずさが積み重なったまま、次の日も二人はどこかぎこちない。';
+  }
+}
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  placed={}; selectedId=null; revisedActive=false; expanded=false; poolOrder=null;
+  resolutionEl.classList.add('hidden');
+  revisionSection.classList.add('hidden');
+  expansionNotice.classList.add('hidden');
+  expansionResolutionEl.classList.add('hidden');
+  buildGrid(); buildPool();
+});
+
+buildGrid();
+buildPool();
+</script>
+</body>
+</html>
